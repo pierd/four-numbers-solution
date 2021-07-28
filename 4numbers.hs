@@ -54,12 +54,25 @@ solveExact x =
         x:_ -> Just x
 
 
+solveClosest :: Integral a => a -> Maybe Expr
+solveClosest x =
+    foldr cons Nothing possibleSolutions where
+        possibleSolutions = possibleExprs (toFourNumbers x)
+        cons :: Expr -> Maybe Expr -> Maybe Expr
+        cons candidate Nothing = Just candidate
+        cons candidate (Just best) =
+            case (abs (10 - eval candidate), abs (10 - eval best)) of
+                (_, 0) -> Just best
+                (0, _) -> Just candidate
+                (c, b) -> Just (if c < b then candidate else best)
+
+
 printAll :: (Integral a, Show a) => (a -> Maybe Expr) -> IO ()
 printAll solver =
     printOne solver 0 where
         showSolution :: Maybe Expr -> String
         showSolution Nothing = "no solution"
-        showSolution (Just x) = show x
+        showSolution (Just x) = show (eval x) ++ " = " ++ show x
         printOne :: (Integral a, Show a) => (a -> Maybe Expr) -> a -> IO ()
         printOne _ 10000 = pure ()
         printOne solver x = do
@@ -68,4 +81,4 @@ printAll solver =
 
 
 main :: IO ()
-main = printAll solveExact
+main = printAll solveClosest
