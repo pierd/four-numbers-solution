@@ -37,13 +37,33 @@ toFourNumbers :: Integral a => a -> [Expr]
 toFourNumbers x = map (Val . fromIntegral) [x `div` 1000, x `div` 100 `mod` 10, x `div` 10 `mod` 10, x `mod` 10]
 
 
+splits :: [a] -> [([a], [a])]
+splits l = ([], l) : nextsplit [] l where
+    nextsplit :: [a] -> [a] -> [([a], [a])]
+    nextsplit _ [] = []
+    nextsplit left (h:t) = (left ++ [h], t) : nextsplit (left ++ [h]) t
+
+
+permutations :: [a] -> [[a]]
+permutations [] = []
+permutations [x] = [[x]]
+permutations (x:xs) =
+    let
+        subPermutations = permutations xs
+        joinSplits (left, right) = left ++ [x] ++ right
+        insertInBetween lst = map joinSplits (splits lst)
+    in concatMap insertInBetween subPermutations
+
+
 possibleExprs :: [Expr] -> [Expr]
-possibleExprs [] = []
-possibleExprs [x] = [x]
-possibleExprs (x:xs) =
-    let subExprs = possibleExprs xs
-    in concatMap (\other -> map (\op -> Complex op x other) allOps) subExprs ++
-       concatMap (\other -> map (\op -> Complex op other x) allOps) subExprs
+possibleExprs l = concatMap possibleExprsInOrder (permutations l) where
+    possibleExprsInOrder :: [Expr] -> [Expr]
+    possibleExprsInOrder [] = []
+    possibleExprsInOrder [x] = [x]
+    possibleExprsInOrder (x:xs) =
+        let subExprs = possibleExprsInOrder xs
+        in concatMap (\other -> map (\op -> Complex op x other) allOps) subExprs ++
+           concatMap (\other -> map (\op -> Complex op other x) allOps) subExprs
 
 
 solveExact :: Integral a => a -> Maybe Expr
@@ -62,9 +82,7 @@ solveClosest x =
         cons candidate Nothing = Just candidate
         cons candidate (Just best) =
             case (abs (10 - eval candidate), abs (10 - eval best)) of
-                (_, 0) -> Just best
-                (0, _) -> Just candidate
-                (c, b) -> Just (if c < b then candidate else best)
+                (c, b) -> Just (if isNaN b || c < b then candidate else best)
 
 
 printAll :: (Integral a, Show a) => (a -> Maybe Expr) -> IO ()
